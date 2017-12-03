@@ -101,6 +101,7 @@ func (p *LookupProtocolV1) Exec(client *ClientV1, reader *bufio.Reader, params [
 	return nil, protocol.NewFatalClientErr(nil, "E_INVALID", fmt.Sprintf("invalid command %s", params[0]))
 }
 
+// params[0] 是 topicName, params[1]是channelName, 获取之前先检查有效性
 func getTopicChan(command string, params []string) (string, string, error) {
 	if len(params) == 0 {
 		return "", "", protocol.NewFatalClientErr(nil, "E_INVALID", fmt.Sprintf("%s insufficient number of params", command))
@@ -123,6 +124,8 @@ func getTopicChan(command string, params []string) (string, string, error) {
 	return topicName, channelName, nil
 }
 
+// 必须初始化过的client 才能注册
+// 如果有channel名，会把该client.peerInfo 注册到 ”channel“ 分类里面，如果没没有channel名，则只注册到topic分类里面
 func (p *LookupProtocolV1) REGISTER(client *ClientV1, reader *bufio.Reader, params []string) ([]byte, error) {
 	if client.peerInfo == nil {
 		return nil, protocol.NewFatalClientErr(nil, "E_INVALID", "client must IDENTIFY")
@@ -149,6 +152,9 @@ func (p *LookupProtocolV1) REGISTER(client *ClientV1, reader *bufio.Reader, para
 	return []byte("OK"), nil
 }
 
+
+// 如果channel名称以“#ephemeral”结尾，Registration也将被删除
+// 如果没有指定channel 名称，则删除channel类型和topic下所有该topic名称下匹配ID的Producer,这部分需要理解注册时的操作
 func (p *LookupProtocolV1) UNREGISTER(client *ClientV1, reader *bufio.Reader, params []string) ([]byte, error) {
 	if client.peerInfo == nil {
 		return nil, protocol.NewFatalClientErr(nil, "E_INVALID", "client must IDENTIFY")
@@ -193,7 +199,7 @@ func (p *LookupProtocolV1) UNREGISTER(client *ClientV1, reader *bufio.Reader, pa
 	return []byte("OK"), nil
 }
 
-// 初始化PeerInfo,RemoteAddr 作为ID，除了HostName, 缺一不可
+// 初始化PeerInfo,RemoteAddr(ip:port) 作为ID，除了HostName, 缺一不可
 
 func (p *LookupProtocolV1) IDENTIFY(client *ClientV1, reader *bufio.Reader, params []string) ([]byte, error) {
 	var err error

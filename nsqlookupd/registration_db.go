@@ -13,7 +13,7 @@ type RegistrationDB struct {
 }
 
 type Registration struct {
-	Category string
+	Category string // 目前发现有client, channel, topic 三种类型
 	Key      string
 	SubKey   string
 }
@@ -21,7 +21,7 @@ type Registrations []Registration
 
 type PeerInfo struct {
 	lastUpdate       int64
-	id               string
+	id               string  // id 是client.RemoteAddr
 	RemoteAddress    string `json:"remote_address"`
 	Hostname         string `json:"hostname"`
 	BroadcastAddress string `json:"broadcast_address"`
