@@ -52,6 +52,9 @@ func (p *LookupProtocolV1) IOLoop(conn net.Conn) error {
 			}
 
 			// errors of type FatalClientErr should forceably close the connection
+
+			// nsq 对error 封装了一层，如果err可转换为FatalClientErr 类型，则强制关闭连接
+			// 在上面p.Exec里面，如果命令参数错误，就会返回一个FatalClientErr的err
 			if _, ok := err.(*protocol.FatalClientErr); ok {
 				break
 			}
@@ -68,6 +71,8 @@ func (p *LookupProtocolV1) IOLoop(conn net.Conn) error {
 
 	conn.Close()
 	p.ctx.nsqlookupd.logf(LOG_INFO, "CLIENT(%s): closing", client)
+	// tcp连接关闭后，该连接的资源也要释放，如果有的话，
+	// 资源应该是在Exec方法里面 "REGISTER" 方注册的
 	if client.peerInfo != nil {
 		registrations := p.ctx.nsqlookupd.DB.LookupRegistrations(client.peerInfo.id)
 		for _, r := range registrations {
@@ -80,6 +85,8 @@ func (p *LookupProtocolV1) IOLoop(conn net.Conn) error {
 	return err
 }
 
+// 目前支持四种命令：PING， IDENTIFY， REGISTER， UNREFIGISTER，如果不是这4种，返回一个FatalClientErr,连接将被强制关闭
+// PING 应该是心跳
 func (p *LookupProtocolV1) Exec(client *ClientV1, reader *bufio.Reader, params []string) ([]byte, error) {
 	switch params[0] {
 	case "PING":
@@ -185,6 +192,8 @@ func (p *LookupProtocolV1) UNREGISTER(client *ClientV1, reader *bufio.Reader, pa
 
 	return []byte("OK"), nil
 }
+
+// 初始化PeerInfo,RemoteAddr 作为ID，除了HostName, 缺一不可
 
 func (p *LookupProtocolV1) IDENTIFY(client *ClientV1, reader *bufio.Reader, params []string) ([]byte, error) {
 	var err error

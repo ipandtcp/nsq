@@ -68,6 +68,9 @@ func (r *RegistrationDB) AddRegistration(k Registration) {
 }
 
 // add a producer to a registration
+// 拿 k 为 client为列：
+// 先获取现有的client's producers, remote ip 为ID，如果存在该ID， 什么也不做，返回false
+// 如果不存在该ID， 则追加该Product 到client 里面，返回true
 func (r *RegistrationDB) AddProducer(k Registration, p *Producer) bool {
 	r.Lock()
 	defer r.Unlock()
