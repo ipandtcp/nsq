@@ -102,6 +102,16 @@ func RespondV1(w http.ResponseWriter, code int, data interface{}) {
 	w.Write(response)
 }
 
+// 此处的写法还是有些难度的
+// 以nsqlookupd_http.go 为列:
+//   在调用的地方，f 是接口处理函数，接下来的是Decorator类型的参数
+//   第二个参数是日志处理函数，通过下面的Log函数以闭包的方式返回，第三个参数的本文件的V1函数也是Decorator
+//   而Decorator 接收APIHandler作为参数，并返回APIHandler类型
+//   因此，第一个参数f 可以作为每个传入的Decorator参数的参数，并且会返回一个APIHandler类型的返回值可以赋值给decorated
+//   因此，for里面的第一回合：接口处理函数（第一个参数f）作为Log（第二个参数ds[0]）的参数，就被包裹了一层，等于是被它调用
+//      for里面的第二回合：被包裹一层的f作为参数给V1再包裹一层
+//   最后返回的是被包裹了两层的Handle
+// 总结：其实这个函数就是用后面的参数去包裹第一个APIHandler, 因此叫Decorate(装饰)
 func Decorate(f APIHandler, ds ...Decorator) httprouter.Handle {
 	decorated := f
 	for _, decorate := range ds {
@@ -129,6 +139,7 @@ func Log(logf lg.AppLogFunc) Decorator {
 	}
 }
 
+// 同下面的LogNotFoundHandler
 func LogPanicHandler(logf lg.AppLogFunc) func(w http.ResponseWriter, req *http.Request, p interface{}) {
 	return func(w http.ResponseWriter, req *http.Request, p interface{}) {
 		logf(lg.ERROR, "panic in HTTP handler - %s", p)
@@ -138,6 +149,10 @@ func LogPanicHandler(logf lg.AppLogFunc) func(w http.ResponseWriter, req *http.R
 	}
 }
 
+// 返回一个Handler, 强制转换匿名函数为http.HanderFunc, 至于Handler与HandlerFunc的关系，可以看看http包的源代码，
+// 接下来是Decorate 第一个参数，匿名函数，返回404，第二个参数是本文件的Log函数包装，第三个是本文件的V1函数，具体看Decorate函数的注释
+// Decorate 执行后返回一个APIHandler，后面直接跟(w, req, nil) 就调用了该APIHandler，这里需要注意，一不小心就翻车了
+// 当然不用担心APIHandler的返回值被丢弃，因为是被log,V1 包裹了两层，具体看Decorate
 func LogNotFoundHandler(logf lg.AppLogFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		Decorate(func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
@@ -146,6 +161,7 @@ func LogNotFoundHandler(logf lg.AppLogFunc) http.Handler {
 	})
 }
 
+// 同上面的LogNotFoundHandler
 func LogMethodNotAllowedHandler(logf lg.AppLogFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		Decorate(func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
