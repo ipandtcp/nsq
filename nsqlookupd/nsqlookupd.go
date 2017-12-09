@@ -21,7 +21,8 @@ type NSQLookupd struct {
 	waitGroup    util.WaitGroupWrapper
 	DB           *RegistrationDB
 }
-
+// 首先 New 一个Options, 保存了服务端的一些基本配置参数，然后在通该Options 去New 一个NSQLookupd
+// 然后调用NSQLookupd.Main() 启动服务
 func New(opts *Options) *NSQLookupd {
 	if opts.Logger == nil {
 		opts.Logger = log.New(os.Stderr, opts.LogPrefix, log.Ldate|log.Ltime|log.Lmicroseconds)
@@ -54,6 +55,7 @@ func (l *NSQLookupd) Main() {
 	l.tcpListener = tcpListener
 	l.Unlock()
 	tcpServer := &tcpServer{ctx: ctx}
+	// 启动子服务的时候使用goruntine,退出的时候等待子服务退出后在退出主程序
 	l.waitGroup.Wrap(func() {
 		protocol.TCPServer(tcpListener, tcpServer, l.logf)
 	})

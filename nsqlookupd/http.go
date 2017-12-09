@@ -18,6 +18,8 @@ type httpServer struct {
 }
 
 func newHTTPServer(ctx *Context) *httpServer {
+	// log 是通过nslookupd.logf 生成的一个decorator, decorator 接收 “接口处理函数”APIHandler类型作为参数
+	// 它的作用是把接口处理函数包装一边，返回一个包装后的接口处理函数
 	log := http_api.Log(ctx.nsqlookupd.logf)
 
 	router := httprouter.New()
