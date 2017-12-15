@@ -11,7 +11,8 @@ import (
 type TCPHandler interface {
 	Handle(net.Conn)
 }
-
+// 接收一个连接请求，并开启一个 goroutine 并发处理改请求
+// 处理工作在handler 里面执行，handler在nsqlookupd Main()里面得到
 func TCPServer(listener net.Listener, handler TCPHandler, logf lg.AppLogFunc) {
 	logf(lg.INFO, "TCP: listening on %s", listener.Addr())
 

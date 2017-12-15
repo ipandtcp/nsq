@@ -54,7 +54,9 @@ func (l *NSQLookupd) Main() {
 	l.Lock()
 	l.tcpListener = tcpListener
 	l.Unlock()
+	// tcpServer 实现了一个Handler 方法，该方法用来处理请求
 	tcpServer := &tcpServer{ctx: ctx}
+
 	// 启动子服务的时候使用goruntine,退出的时候等待子服务退出后在退出主程序
 	l.waitGroup.Wrap(func() {
 		protocol.TCPServer(tcpListener, tcpServer, l.logf)

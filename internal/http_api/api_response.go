@@ -54,6 +54,8 @@ func PlainText(f APIHandler) APIHandler {
 	}
 }
 
+// Version 1 的接口响应函数
+// 用于包装一层APIHandler， 执行被包裹的APIHanler, 对接口做相应的响应，
 func V1(f APIHandler) APIHandler {
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 		data, err := f(w, req, ps)

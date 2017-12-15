@@ -21,12 +21,14 @@ type LookupProtocolV1 struct {
 	ctx *Context
 }
 
+// V1 的TCP服务请求处理函数，由tcpServer.Handle调用
 func (p *LookupProtocolV1) IOLoop(conn net.Conn) error {
 	var err error
 	var line string
 
 	client := NewClientV1(conn)
 	reader := bufio.NewReader(client)
+	// 每行是一条命令，'\n' 作为命令分隔符
 	for {
 		line, err = reader.ReadString('\n')
 		if err != nil {
@@ -37,8 +39,11 @@ func (p *LookupProtocolV1) IOLoop(conn net.Conn) error {
 		params := strings.Split(line, " ")
 
 		var response []byte
+
+		// 根据处理请求，PING， IDENTIFY， REGISTER， UNREFIGISTER，如果不是这4种，返回一个FatalClientErr,连接将被强制关闭
 		response, err = p.Exec(client, reader, params)
 		if err != nil {
+			// 如果出错，返回所有出错信息，包括上级错误信息，然后关闭连接
 			ctx := ""
 			if parentErr := err.(protocol.ChildErr).Parent(); parentErr != nil {
 				ctx = " - " + parentErr.Error()
@@ -61,7 +66,9 @@ func (p *LookupProtocolV1) IOLoop(conn net.Conn) error {
 			continue
 		}
 
+		// 回复请求处理结果
 		if response != nil {
+			// SendResponse 将会先发送返回数据的长度，4字节，发送response, 总共是len(response) + sizeof(int32)
 			_, err = protocol.SendResponse(client, response)
 			if err != nil {
 				break
@@ -86,7 +93,6 @@ func (p *LookupProtocolV1) IOLoop(conn net.Conn) error {
 }
 
 // 目前支持四种命令：PING， IDENTIFY， REGISTER， UNREFIGISTER，如果不是这4种，返回一个FatalClientErr,连接将被强制关闭
-// PING 应该是心跳
 func (p *LookupProtocolV1) Exec(client *ClientV1, reader *bufio.Reader, params []string) ([]byte, error) {
 	switch params[0] {
 	case "PING":

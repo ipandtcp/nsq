@@ -11,6 +11,7 @@ type tcpServer struct {
 	ctx *Context
 }
 
+// 该方法用来处理tcp请求，当有新请求来临，Accept,然后放到这里处理
 func (p *tcpServer) Handle(clientConn net.Conn) {
 	p.ctx.nsqlookupd.logf(LOG_INFO, "TCP: new client(%s)", clientConn.RemoteAddr())
 
@@ -32,7 +33,9 @@ func (p *tcpServer) Handle(clientConn net.Conn) {
 	var prot protocol.Protocol
 	switch protocolMagic {
 	case "  V1":
+		// 创建一个”V1“处理对象
 		prot = &LookupProtocolV1{ctx: p.ctx}
+		// 目前只支持"  V1"  ，注意这里是四字节，有两个空格
 	default:
 		protocol.SendResponse(clientConn, []byte("E_BAD_PROTOCOL"))
 		clientConn.Close()
@@ -41,6 +44,7 @@ func (p *tcpServer) Handle(clientConn net.Conn) {
 		return
 	}
 
+	// 这里是主要处理函数
 	err = prot.IOLoop(clientConn)
 	if err != nil {
 		p.ctx.nsqlookupd.logf(LOG_ERROR, "client(%s) - %s", clientConn.RemoteAddr(), err)

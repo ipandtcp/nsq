@@ -63,9 +63,12 @@ func newHTTPServer(ctx *Context) *httpServer {
 	return s
 }
 
+// 实现该方式是为了实现http.Handler
 func (s *httpServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.router.ServeHTTP(w, req)
 }
+
+// 以下接口都是APIHandler 类型：接口处理函数, 所有的函数都被包装了两层，所有不用担心返回与日志的问题
 
 func (s *httpServer) pingHandler(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	return "OK", nil
