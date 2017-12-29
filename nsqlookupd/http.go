@@ -74,6 +74,7 @@ func (s *httpServer) pingHandler(w http.ResponseWriter, req *http.Request, ps ht
 	return "OK", nil
 }
 
+
 func (s *httpServer) doInfo(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	return struct {
 		Version string `json:"version"`
@@ -82,6 +83,7 @@ func (s *httpServer) doInfo(w http.ResponseWriter, req *http.Request, ps httprou
 	}, nil
 }
 
+// 搜索该topic所有key, subkey 
 func (s *httpServer) doTopics(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	topics := s.ctx.nsqlookupd.DB.FindRegistrations("topic", "*", "").Keys()
 	return map[string]interface{}{
@@ -89,6 +91,7 @@ func (s *httpServer) doTopics(w http.ResponseWriter, req *http.Request, ps httpr
 	}, nil
 }
 
+// 找到特定topicname中的所有channelsname,即 subkey 
 func (s *httpServer) doChannels(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	reqParams, err := http_api.NewReqParams(req)
 	if err != nil {
@@ -106,6 +109,9 @@ func (s *httpServer) doChannels(w http.ResponseWriter, req *http.Request, ps htt
 	}, nil
 }
 
+// 类型为"topic"时，key是 topic name,subkey 是为空的，有待日后确定 .   --> 已确定，在下面的doCreateTopic 函数
+// 先确定是否存在该topicName, 如果存在就获取该topicname的channel分类中所有channelsname和topic分类中的所有Products
+// 然后筛选出Active的Producter
 func (s *httpServer) doLookup(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	reqParams, err := http_api.NewReqParams(req)
 	if err != nil {
@@ -132,6 +138,7 @@ func (s *httpServer) doLookup(w http.ResponseWriter, req *http.Request, ps httpr
 	}, nil
 }
 
+// 获取topicname ,并检查是否是合法的topicname, 如果是，就加入到topic分类中
 func (s *httpServer) doCreateTopic(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	reqParams, err := http_api.NewReqParams(req)
 	if err != nil {
@@ -154,6 +161,8 @@ func (s *httpServer) doCreateTopic(w http.ResponseWriter, req *http.Request, ps 
 	return nil, nil
 }
 
+
+// 删除topic 时，把类别channel 和 topic 中的的都删除，包括Registrations 中的Producer 
 func (s *httpServer) doDeleteTopic(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	reqParams, err := http_api.NewReqParams(req)
 	if err != nil {
@@ -180,6 +189,7 @@ func (s *httpServer) doDeleteTopic(w http.ResponseWriter, req *http.Request, ps 
 	return nil, nil
 }
 
+// 指定topic和node, Tombstone it 
 func (s *httpServer) doTombstoneTopicProducer(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	reqParams, err := http_api.NewReqParams(req)
 	if err != nil {
@@ -208,6 +218,7 @@ func (s *httpServer) doTombstoneTopicProducer(w http.ResponseWriter, req *http.R
 	return nil, nil
 }
 
+// 添加一个Channel， 即要添加到channel分类，也要添加到topic分类
 func (s *httpServer) doCreateChannel(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	reqParams, err := http_api.NewReqParams(req)
 	if err != nil {
@@ -230,6 +241,8 @@ func (s *httpServer) doCreateChannel(w http.ResponseWriter, req *http.Request, p
 	return nil, nil
 }
 
+// 删除channel分类中的topicName & channelName,。
+// 这里有个疑惑，创建的时候同时在channel和topic分类中创建了Registration, 但是删除的时候只删除了channel中的，不太理解
 func (s *httpServer) doDeleteChannel(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	reqParams, err := http_api.NewReqParams(req)
 	if err != nil {
@@ -265,19 +278,31 @@ type node struct {
 	Topics           []string `json:"topics"`
 }
 
+
+// 找到所有client类型中的Producers,
+// 再找到topic类型中的所有key,再根据这些key,找到所有的Producers,然后做一些查询，最后返回
+// 下面有一些我自作聪明的优化，由于对整个项目还不是很了解，不知道会不会产生其他问题，优化的也并不好，急着敢末班车，先闪了
 func (s *httpServer) doNodes(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	// dont filter out tombstoned nodes
 	producers := s.ctx.nsqlookupd.DB.FindProducers("client", "", "").FilterByActive(
 		s.ctx.nsqlookupd.opts.InactiveProducerTimeout, 0)
 	nodes := make([]*node, len(producers))
+
+	topics     := s.ctx.nsqlookupd.DB.LookupRegistrations(p.peerInfo.id).Filter("topic", "*", "").Keys()
+	tombstones := make([]bool, len(topics))
+	topicProducers := Producers{}
+	for j, t := range topics {
+		topicProducers = append(topicProduers, s.ctx.nsqlookupd.DB.FindProducers("topic", t, "")...)
+	}
+
 	for i, p := range producers {
-		topics := s.ctx.nsqlookupd.DB.LookupRegistrations(p.peerInfo.id).Filter("topic", "*", "").Keys()
+		//topics := s.ctx.nsqlookupd.DB.LookupRegistrations(p.peerInfo.id).Filter("topic", "*", "").Keys()
 
 		// for each topic find the producer that matches this peer
 		// to add tombstone information
-		tombstones := make([]bool, len(topics))
+		//tombstones := make([]bool, len(topics))
 		for j, t := range topics {
-			topicProducers := s.ctx.nsqlookupd.DB.FindProducers("topic", t, "")
+			//topicProducers := s.ctx.nsqlookupd.DB.FindProducers("topic", t, "")
 			for _, tp := range topicProducers {
 				if tp.peerInfo == p.peerInfo {
 					tombstones[j] = tp.IsTombstoned(s.ctx.nsqlookupd.opts.TombstoneLifetime)
@@ -302,6 +327,8 @@ func (s *httpServer) doNodes(w http.ResponseWriter, req *http.Request, ps httpro
 	}, nil
 }
 
+
+// 返回DB中所有内容，一般用于调试
 func (s *httpServer) doDebug(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	s.ctx.nsqlookupd.DB.RLock()
 	defer s.ctx.nsqlookupd.DB.RUnlock()

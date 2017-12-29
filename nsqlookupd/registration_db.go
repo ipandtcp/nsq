@@ -12,16 +12,37 @@ type RegistrationDB struct {
 	registrationMap map[Registration]Producers
 }
 
+/*
+registrationsmap:
+
+      Registration                                []*Producer(Producers)
+
+                                               _________________________________________________
+---------------------------             ------|-----------------------------------             |       ----------------------------------------
+| Category | Key | SubKey | -->  [0] -->| *PeerInfo | tombstoned | tombstonedAt |	       |------>| lastUpdate | id | RemoteAddress | ... |
+---------------------------             -----------------------------------------                      ----------------------------------------
+				 [N] -->| *PeerInfo | tombstoned | tombstonedAt |
+				        -----------------------------------------
+
+                                               _________________________________________________
+---------------------------             ------|-----------------------------------             |       ----------------------------------------
+| Category | Key | SubKey | -->  [0] -->| *PeerInfo | tombstoned | tombstonedAt |	       |------>| lastUpdate | id | RemoteAddress | ... |
+---------------------------             -----------------------------------------                      ----------------------------------------
+				 [N] -->| *PeerInfo | tombstoned | tombstonedAt |
+				        -----------------------------------------
+*/
+
 type Registration struct {
-	Category string // 目前发现有client, channel, topic 三种类型
-	Key      string
-	SubKey   string
+	Category string  // 目前发现有client, channel, topic 三种类型
+	Key      string  // 目前发现的有：tpoic name
+	SubKey   string  // 目前发现的有：channel name 
 }
 type Registrations []Registration
 
+// producer info
 type PeerInfo struct {
 	lastUpdate       int64
-	id               string  // id 是client.RemoteAddr
+	id               string  // id 是client.RemoteAddr (IP:Port)
 	RemoteAddress    string `json:"remote_address"`
 	Hostname         string `json:"hostname"`
 	BroadcastAddress string `json:"broadcast_address"`
@@ -69,7 +90,7 @@ func (r *RegistrationDB) AddRegistration(k Registration) {
 
 // add a producer to a registration
 // 拿 k 为 client为列：
-// 先获取现有的client's producers, remote ip 为ID，如果存在该ID， 什么也不做，返回false
+// 先获取现有的client's producers, RemoteAddr为ID，如果存在该ID， 什么也不做，返回false
 // 如果不存在该ID， 则追加该Product 到client 里面，返回true
 func (r *RegistrationDB) AddProducer(k Registration, p *Producer) bool {
 	r.Lock()
@@ -114,6 +135,8 @@ func (r *RegistrationDB) RemoveProducer(k Registration, id string) (bool, int) {
 func (r *RegistrationDB) RemoveRegistration(k Registration) {
 	r.Lock()
 	defer r.Unlock()
+	// delete map 中的一个key,就会把key中的指针数组删除没毛病，但是指针指向的对象呢？
+	// 如何做到也一起删除呢？ 看来golang的基础没学好
 	delete(r.registrationMap, k)
 }
 
@@ -121,10 +144,13 @@ func (r *RegistrationDB) needFilter(key string, subkey string) bool {
 	return key == "*" || subkey == "*"
 }
 
+// 如果key或subkey是×(通配符), 找到所有匹配参数 category, key, subkey的 Registrations
+// 如果key和subkey是固定值，则精确匹配并返回 
 func (r *RegistrationDB) FindRegistrations(category string, key string, subkey string) Registrations {
 	r.RLock()
 	defer r.RUnlock()
 	if !r.needFilter(key, subkey) {
+		// 不需要Filter， 精确匹配
 		k := Registration{category, key, subkey}
 		if _, ok := r.registrationMap[k]; ok {
 			return Registrations{k}
@@ -141,6 +167,8 @@ func (r *RegistrationDB) FindRegistrations(category string, key string, subkey s
 	return results
 }
 
+// 和上面的是同样的套路，如果没有通配符，就直接返回对应的Producers([]*Producer)
+// 如果有通配符，就返回所有匹配的
 func (r *RegistrationDB) FindProducers(category string, key string, subkey string) Producers {
 	r.RLock()
 	defer r.RUnlock()
@@ -155,6 +183,8 @@ func (r *RegistrationDB) FindProducers(category string, key string, subkey strin
 			continue
 		}
 		for _, producer := range producers {
+			// 如果已经加入找到过该 producer, 就跳过该producer,
+			// 这样是不是表示一个producer可以同时加入多个topic或category？ 还有待观察！
 			found := false
 			for _, p := range results {
 				if producer.peerInfo.id == p.peerInfo.id {

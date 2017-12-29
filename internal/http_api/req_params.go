@@ -12,6 +12,7 @@ type ReqParams struct {
 	Body []byte
 }
 
+// 提取参数req的内容,   返回 Reparams
 func NewReqParams(req *http.Request) (*ReqParams, error) {
 	reqParams, err := url.ParseQuery(req.URL.RawQuery)
 	if err != nil {
