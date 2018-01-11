@@ -14,6 +14,9 @@ import (
 	"github.com/nsqio/nsq/internal/app"
 	"github.com/nsqio/nsq/internal/version"
 	"github.com/nsqio/nsq/nsqadmin"
+	//"github.com/tcpandip/nsq/internal/app"
+	//"github.com/tcpandip/nsq/internal/version"
+	//"github.com/tcpandip/nsq/nsqadmin"
 )
 
 var (

@@ -205,8 +205,9 @@ func (p *LookupProtocolV1) UNREGISTER(client *ClientV1, reader *bufio.Reader, pa
 	return []byte("OK"), nil
 }
 
-// 初始化PeerInfo,RemoteAddr(ip:port) 作为ID，除了HostName, 缺一不可
-
+// 初始化PeerInfo,RemoteAddr(ip:port) 作为ID，peerInfo.BroadcastAddress == "" || peerInfo.TCPPort == 0 || peerInfo.HTTPPort == 0 || peerInfo.Version == "" 都会返回missing fields ,
+// 一个Client只可以IDENTIFY一次,
+// 最后用client 给的数据生成一个perrInfo, 用peerInfo生成Producer,加入到client分类中
 func (p *LookupProtocolV1) IDENTIFY(client *ClientV1, reader *bufio.Reader, params []string) ([]byte, error) {
 	var err error
 
