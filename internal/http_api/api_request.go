@@ -119,6 +119,7 @@ retry:
 	return nil
 }
 
+//将原先的http请求地址转换成https,并从错误返回中获取https端口，合并成https请求url
 func httpsEndpoint(endpoint string, body []byte) (string, error) {
 	var forbiddenResp struct {
 		HTTPSPort int `json:"https_port"`

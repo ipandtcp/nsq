@@ -119,6 +119,7 @@ func (s *httpServer) pingHandler(w http.ResponseWriter, req *http.Request, ps ht
 	return "OK", nil
 }
 
+//获取index.html的二进制文件内容，然后通过template嵌入相关配置到内容中，
 func (s *httpServer) indexHandler(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	asset, _ := Asset("index.html")
 	t, _ := template.New("index").Parse(string(asset))
@@ -182,6 +183,17 @@ func (s *httpServer) staticAssetHandler(w http.ResponseWriter, req *http.Request
 	return string(asset), nil
 }
 
+//获取所有集群的topic信息，如果请求参数有inactive=true,那么就通过获取到的topics信息去lookupd中查询是否有producers，
+//如果没有就加入该topic下的所有channels到返回信息中,返回结果变为:
+//{
+//	"topics": {
+//		"topicName": [
+//			"topicChannel1",
+//			"topicChannel2"
+//		]
+//	},
+//	"message":"msg"
+//}
 func (s *httpServer) topicsHandler(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	var messages []string
 
@@ -713,9 +725,11 @@ func (s *httpServer) graphiteHandler(w http.ResponseWriter, req *http.Request, p
 	}{rateStr}, nil
 }
 
+//首先通过IP 地址检查权限，权限通过后如果请求方法是PUT，则是更改配置，最后都会返回最新的配置
 func (s *httpServer) doConfig(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 	opt := ps.ByName("opt")
 
+	// 检查请求源IP是否有权限访问该接口，默认为127.0.0.1/8
 	allowConfigFromCIDR := s.ctx.nsqadmin.getOpts().AllowConfigFromCIDR
 	if allowConfigFromCIDR != "" {
 		_, ipnet, _ := net.ParseCIDR(allowConfigFromCIDR)

@@ -26,6 +26,7 @@ func Union(s []string, a []string) []string {
 	return s
 }
 
+//字符串数组去重
 func Uniq(s []string) (r []string) {
 	for _, entry := range s {
 		found := false

@@ -24,7 +24,7 @@ type NSQAdmin struct {
 	sync.RWMutex
 
 	// opts 保存的是配置信息，通过原子操作来解决同步的问题
-	opts                atomic.Value
+	opts atomic.Value
 
 	httpListener        net.Listener
 	waitGroup           util.WaitGroupWrapper
@@ -43,6 +43,7 @@ func New(opts *Options) *NSQAdmin {
 	n := &NSQAdmin{
 		notifications: make(chan *AdminAction),
 	}
+	//这里是把Options 的配置信息储存到n.opts中
 	n.swapOpts(opts)
 
 	var err error
@@ -54,7 +55,7 @@ func New(opts *Options) *NSQAdmin {
 		os.Exit(1)
 	}
 
-	// nsqd 不能与lookupd地址同时指定 
+	// nsqd 不能与lookupd地址同时指定
 	if len(opts.NSQDHTTPAddresses) == 0 && len(opts.NSQLookupdHTTPAddresses) == 0 {
 		n.logf(LOG_FATAL, "--nsqd-http-address or --lookupd-http-address required.")
 		os.Exit(1)
@@ -158,8 +159,8 @@ func (n *NSQAdmin) RealHTTPAddr() *net.TCPAddr {
 	return n.httpListener.Addr().(*net.TCPAddr)
 }
 
-// http的handle如果被合法请求，有些会推送一个action，这边接受到action,就往 --notification ned point post 相关消息。如果没有，就堵塞
-// 官方解释：If the --notification-http-endpoint flag is set, 
+// http的handle如果被合法请求，有些会推送一个action，这边接受到action,就往 --notification end point post 相关消息。如果没有，就堵塞
+// 官方解释：If the --notification-http-endpoint flag is set,
 //   nsqadmin will send a POST request to the specified (fully qualified) endpoint each time an admin action (such as pausing a channel) is performed.
 func (n *NSQAdmin) handleAdminActions() {
 	for action := range n.notifications {
@@ -168,7 +169,7 @@ func (n *NSQAdmin) handleAdminActions() {
 			n.logf(LOG_ERROR, "failed to serialize admin action - %s", err)
 		}
 		httpclient := &http.Client{
-  			Transport: http_api.NewDeadlineTransport(n.getOpts().HTTPClientConnectTimeout, n.getOpts().HTTPClientRequestTimeout),
+			Transport: http_api.NewDeadlineTransport(n.getOpts().HTTPClientConnectTimeout, n.getOpts().HTTPClientRequestTimeout),
 		}
 		n.logf(LOG_INFO, "POSTing notification to %s", n.getOpts().NotificationHTTPEndpoint)
 		resp, err := httpclient.Post(n.getOpts().NotificationHTTPEndpoint,
@@ -180,7 +181,7 @@ func (n *NSQAdmin) handleAdminActions() {
 	}
 }
 
-// 首先开启监听tcp端口，然后把获得的socket给Serve, 
+// 首先开启监听tcp端口，然后把获得的socket给Serve,
 // 当然，Serve还需要hander和接口路由等信息，在NewHTTPServer中获取。Serve是对http包的Server封装了一层, 所以至此服务起来了
 // handle 使用了Gorilla的压缩代码，对内容执行压缩
 // 至于handleAdminActions,就是等待httpServer中的handlers推送消息到chan中，然后handleAdminActions 把相关消息推送到启动服务时注册的notification-http-endpoint中

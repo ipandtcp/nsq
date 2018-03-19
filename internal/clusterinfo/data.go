@@ -91,6 +91,7 @@ func (c *ClusterInfo) GetLookupdTopics(lookupdHTTPAddrs []string) ([]string, err
 			var resp respType
 			err := c.client.GETV1(endpoint, &resp)
 			if err != nil {
+				// 为什么追加errs要加锁操作？如果不加锁不出错吗？
 				lock.Lock()
 				errs = append(errs, err)
 				lock.Unlock()

@@ -55,7 +55,7 @@ func PlainText(f APIHandler) APIHandler {
 }
 
 // Version 1 的接口响应函数
-// 用于包装一层APIHandler， 执行被包裹的APIHanler, 对接口做相应的响应，
+// 用于包装一层APIHandler， 执行被包裹的APIHandler, 对接口做相应的响应，
 func V1(f APIHandler) APIHandler {
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
 		data, err := f(w, req, ps)
@@ -154,7 +154,7 @@ func LogPanicHandler(logf lg.AppLogFunc) func(w http.ResponseWriter, req *http.R
 // 返回一个Handler, 强制转换匿名函数为http.HanderFunc, 至于Handler与HandlerFunc的关系，可以看看http包的源代码，
 // 接下来是Decorate 第一个参数，匿名函数，返回404，第二个参数是本文件的Log函数包装，第三个是本文件的V1函数，具体看Decorate函数的注释
 // Decorate 执行后返回一个APIHandler，后面直接跟(w, req, nil) 就调用了该APIHandler，这里需要注意，一不小心就翻车了
-// 当然不用担心APIHandler的返回值被丢弃，因为是被log,V1 包裹了两层，具体看Decorate
+// 在nsqlookup中，不用担心APIHandler的返回值被丢弃，因为是被log（记录日志）和V1（response） 包裹了，具体看Decorate
 func LogNotFoundHandler(logf lg.AppLogFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		Decorate(func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {

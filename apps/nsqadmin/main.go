@@ -14,9 +14,6 @@ import (
 	"github.com/nsqio/nsq/internal/app"
 	"github.com/nsqio/nsq/internal/version"
 	"github.com/nsqio/nsq/nsqadmin"
-	//"github.com/tcpandip/nsq/internal/app"
-	//"github.com/tcpandip/nsq/internal/version"
-	//"github.com/tcpandip/nsq/nsqadmin"
 )
 
 var (
@@ -88,6 +85,7 @@ func main() {
 	}
 
 	opts := nsqadmin.NewOptions()
+	// 合并命令行参数，配置文件，默认参数等配置信息到opts中
 	options.Resolve(opts, flagSet, cfg)
 	nsqadmin := nsqadmin.New(opts)
 
